@@ -8,49 +8,47 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-public class Player extends Entity {
+public class Player extends Entity{
     gamepanel GamePanel;
     Movement movement;
+
     public final int screenY;
     public final int screenX;
 
-    public Player(gamepanel Gamepanel, Movement movement) {
+    public Player(gamepanel Gamepanel, Movement movement){
         this.GamePanel = Gamepanel;
         this.movement = movement;
 
-        screenX = GamePanel.ScreenWidth / 2 - (GamePanel.TileSize / 2);
-        screenY = GamePanel.TileSize * 13;
+        screenX = GamePanel.ScreenWidth/2;
+        screenY = GamePanel.TileSize*13; // высота на экране
 
         solidArea = new Rectangle();
-        solidArea.x = 8;
-        solidArea.y = 16;
-        solidArea.width = GamePanel.TileSize - 16;
-        solidArea.height = GamePanel.TileSize * 2 - 16;
-        solidAreaDefaultX = solidArea.x;
-        solidAreaDefaultY = solidArea.y;
+        solidArea.x = 2; // коорд в перс
+        solidArea.y = 11;
+        solidArea.width = 28; //ширина хитбокса
+        solidArea.height = 53;
 
         setDefaultStats();
         getPlayerImage();
     }
-
-    public void setDefaultStats() {
+    public void setDefaultStats(){
         originalTileSize = 32;
-        scale = (float) 60 / 32;
-        TileSize = (int) ((originalTileSize * scale));
-        ScreenRow = 18;
-        ScreenHeight = TileSize * ScreenRow;
-        worldX = GamePanel.TileSize * 17;
-        worldY = GamePanel.TileSize * 10;
-        speed = 5; // уменьшил скорость для более плавного управления
-        velocityY = 0;
-        gravity = 0.5;
-        jumpForce = -13; // уменьшил силу прыжка
-        onGround = false;
-        isFalling = true;
-        direction = "standRight";
-    }
+        scale = (float) 60 /32;
+        TileSize= (int) ((originalTileSize*scale));
+        ScreenRow=18;
+        ScreenHeight = TileSize*ScreenRow;
+        worldX = GamePanel.TileSize* 17;
 
-    public void getPlayerImage() {
+        worldY = TileSize*13; // уровень персонажа в игре
+        speed = 10;
+        velocityY = 0;
+        gravity = 0.8;
+        floor = TileSize*13;
+        jumpForce = -15;
+
+
+    }
+    public void getPlayerImage(){
         try {
             Moving1left = ImageIO.read(getClass().getResourceAsStream("/player/Moving1.png"));
             Moving2left = ImageIO.read(getClass().getResourceAsStream("/player/Moving2.png"));
@@ -60,161 +58,90 @@ public class Player extends Entity {
             Moving2right = ImageIO.read(getClass().getResourceAsStream("/player/Moving2right.png"));
             Standing1Left = ImageIO.read(getClass().getResourceAsStream("/player/Standing1Left.png"));
             Standing2Left = ImageIO.read(getClass().getResourceAsStream("/player/Standing2Left.png"));
-
-            // Загружаем изображения прыжка и падения
-            try {
-                JumpingLeft = ImageIO.read(getClass().getResourceAsStream("/player/JumpingLeft.png"));
-                JumpingRight = ImageIO.read(getClass().getResourceAsStream("/player/JumpingRight.png"));
-                FallingLeft = ImageIO.read(getClass().getResourceAsStream("/player/FallingLeft.png"));
-                FallingRight = ImageIO.read(getClass().getResourceAsStream("/player/FallingRight.png"));
-            } catch (Exception e) {
-                JumpingLeft = Standing1Left;
-                JumpingRight = Standing1;
-                FallingLeft = Standing1Left;
-                FallingRight = Standing1;
-            }
-        } catch (IOException e) {
+        } catch (IOException e){
             e.printStackTrace();
         }
     }
-
-    public void update() {
-        // Обработка прыжка
+    public void update(){
         if (Movement.jump && onGround) {
             velocityY = jumpForce;
             onGround = false;
             isJumping = true;
-            isFalling = false;
         }
-
-        // Применяем гравитацию
+//поменять систему гравитации чтобы работала коллизия нормально
         if (!onGround) {
+            worldY += (int) velocityY;
             velocityY += gravity;
-
-            // Ограничиваем максимальную скорость падения
-            if (velocityY > 15) {
-                velocityY = 15;
-            }
-
-            // Обновляем вертикальную позицию
-            worldY += velocityY;
-
-            // Определяем состояние (прыжок/падение)
-            if (velocityY > 0) {
-                isJumping = false;
-                isFalling = true;
-            }
-        }
-
-        // Проверяем коллизию по вертикали
-        boolean verticalCollision = GamePanel.cChecker.checkVerticalCollision(this);
-
-        if (verticalCollision) {
-            if (velocityY > 0) { // Приземление
+            if (worldY >= floor) {
+                worldY = floor;
+                velocityY = 0;
                 onGround = true;
                 isJumping = false;
-                isFalling = false;
-                velocityY = 0;
-            } else if (velocityY < 0) { // Удар головой
-                velocityY = 0;
             }
-        } else if (!onGround && velocityY >= 0) {
-            onGround = false;
         }
-
-        // Определяем направление для анимации
-        String animationDirection = direction;
-        if (isJumping) {
-            animationDirection = direction.startsWith("left") ? "jumpLeft" : "jumpRight";
-        } else if (isFalling) {
-            animationDirection = direction.startsWith("left") ? "fallLeft" : "fallRight";
-        }
-
-        // Обработка горизонтального движения
-        boolean moving = false;
-        if (movement.left && !movement.right) {
-            direction = "left";
-            moving = true;
-        } else if (movement.right && !movement.left) {
+        if (movement.left){
             direction = "right";
-            moving = true;
-        } else {
-            // Сохраняем последнее направление для стоячей анимации
-            if (direction.equals("left") || direction.equals("jumpLeft") ||
-                    direction.equals("fallLeft") || direction.equals("standLeft")) {
-                direction = "standLeft";
-            } else {
-                direction = "standRight";
-            }
-        }
 
-        // Проверяем коллизию по горизонтали только если двигаемся
-        if (moving) {
-            boolean horizontalCollision = GamePanel.cChecker.checkHorizontalCollision(this);
-            if (!horizontalCollision) {
-                if (direction.equals("left")) {
-                    worldX -= speed;
-                } else if (direction.equals("right")) {
-                    worldX += speed;
-                }
-            }
-        }
+        } else if (movement.right) {
+            direction = "left";
 
-        // Обновление анимации
+        } else if (movement.lastPressed=='a') {direction="standLeft";} else {direction = "standRight";}
         spriteCounter++;
-        if (spriteCounter > 10) {
-            spriteNum = (spriteNum == 1) ? 2 : 1;
+        if (spriteCounter > 20){
+            if (spriteNum==1){spriteNum=2;} else if (spriteNum==2) {spriteNum=1;
+            }
             spriteCounter = 0;
         }
-    }
+        //коллизия
+        collisionOn = false;
 
-    public void draw(Graphics2D g2) {
-        BufferedImage image = null;
-        String drawDirection = direction;
+        GamePanel.cChecker.checkTile(this);
+        if (collisionOn == false){
+            switch (direction){
+                case "left":
+                    worldX +=speed;
+                    break;
+                case "right":
+                    worldX -=speed;
+                    break;
 
-        // Определяем направление для отрисовки
-        if (isJumping) {
-            drawDirection = direction.startsWith("left") || direction.equals("standLeft") ?
-                    "jumpLeft" : "jumpRight";
-        } else if (isFalling) {
-            drawDirection = direction.startsWith("left") || direction.equals("standLeft") ?
-                    "fallLeft" : "fallRight";
+
+            }
         }
+    }
+    public void draw(Graphics2D g2){
+        BufferedImage image = null;
 
-        switch (drawDirection) {
+        switch (direction){
             case "left":
-                image = (spriteNum == 1) ? Moving1left : Moving2left;
+                if (spriteNum == 1){
+                    image = Moving1left;}
+                if (spriteNum == 2){
+                    image = Moving2left;
+                }
                 break;
             case "right":
-                image = (spriteNum == 1) ? Moving1right : Moving2right;
+                if (spriteNum == 1){
+                    image = Moving1right;}
+                if (spriteNum == 2){
+                    image = Moving2right;
+                }
                 break;
             case "standRight":
-                image = (spriteNum == 1) ? Standing1 : Standing2;
+                if (spriteNum == 1){
+                    image = Standing1;}
+                if (spriteNum == 2){
+                    image = Standing2;
+                }
                 break;
             case "standLeft":
-                image = (spriteNum == 1) ? Standing1Left : Standing2Left;
-                break;
-            case "jumpLeft":
-                image = JumpingLeft;
-                break;
-            case "jumpRight":
-                image = JumpingRight;
-                break;
-            case "fallLeft":
-                image = FallingLeft;
-                break;
-            case "fallRight":
-                image = FallingRight;
+                if (spriteNum == 1){
+                    image = Standing1Left;}
+                if (spriteNum == 2){
+                    image = Standing2Left;}
                 break;
         }
+        g2.drawImage(image, screenX, screenY, TileSize, TileSize*2, null);
 
-        if (image != null) {
-            g2.drawImage(image, screenX, screenY, TileSize, TileSize * 2, null);
-        }
-
-        // Отладка: хитбокс (можно включить для тестирования)
-        // g2.setColor(new Color(255, 0, 0, 100));
-        // g2.fillRect(screenX + solidArea.x, screenY + solidArea.y,
-        //            solidArea.width, solidArea.height);
     }
 }
