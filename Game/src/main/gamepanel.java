@@ -13,17 +13,22 @@ float scale = (float) 60 /32;
     public int TileSize= (int) ((originalTileSize*scale));
 public int ScreenCol = 32;
 public int ScreenRow=18;
-int ScreenWidth = TileSize*ScreenCol;
+public int  ScreenWidth = TileSize*ScreenCol;
 public int ScreenHeight = TileSize*ScreenRow;
+
+public final int maxWorldCol = ScreenCol * 2; //изменяемо
+public final int maxWorldRow = 42; //изменяемо
+public final int worldWidth = TileSize * maxWorldCol;
+public final int worldHeight = TileSize * maxWorldRow;
+
 
     int FPS = 60;
 
     TileManager tileManager = new TileManager(this);
     Movement movement = new Movement();
     Thread gameThread;
-    Player player = new Player(this, movement);
-
-    public int floor = ScreenHeight - TileSize * 5;
+    public CollisionChecker cChecker = new CollisionChecker(this);
+     public Player player = new Player(this, movement);
 
 
 

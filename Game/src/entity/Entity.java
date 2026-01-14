@@ -1,5 +1,6 @@
 package entity;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 
 public class Entity {
@@ -8,18 +9,23 @@ public class Entity {
     int TileSize;
     int ScreenRow;
     int ScreenHeight;
-    int floor;
-    double velocityY;
-    double gravity;
-    double jumpForce;
-    public int x,y;
+    public double velocityY;
+    public double gravity;
+    public double jumpForce;
+    public int worldX, worldY;
     public int speed;
-    boolean onGround;
-    boolean isJumping;
+    public boolean onGround;
+    public boolean isJumping;
+    public boolean isFalling;
 
-    public BufferedImage Moving1left, Moving2left, Standing1, Standing2, Moving1right, Moving2right,Standing1Left, Standing2Left;
+    public BufferedImage Moving1left, Moving2left, Standing1, Standing2,
+            Moving1right, Moving2right, Standing1Left, Standing2Left,
+            JumpingLeft, JumpingRight, FallingLeft, FallingRight;
     public String direction;
-    public int spriteCounter=0;
-    public int spriteNum=1;
+    public int spriteCounter = 0;
+    public int spriteNum = 1;
+    public Rectangle solidArea;
+    public boolean collisionOn = false;
 
+    public int solidAreaDefaultX, solidAreaDefaultY;
 }
