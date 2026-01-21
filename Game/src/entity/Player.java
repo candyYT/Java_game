@@ -1,7 +1,9 @@
 package entity;
 
+import main.Dash;
 import main.gamepanel;
 import main.Movement;
+
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -11,22 +13,26 @@ import java.io.IOException;
 public class Player extends Entity{
     gamepanel GamePanel;
     Movement movement;
+    public Dash dash;
 
     public final int screenY;
     public final int screenX;
+    private boolean canDash = true;
+    private float dashCooldownTimer = 0;
 
     public Player(gamepanel Gamepanel, Movement movement){
         this.GamePanel = Gamepanel;
         this.movement = movement;
+        this.dash = new Dash(movement);
 
         screenX = GamePanel.ScreenWidth/2;
         screenY = GamePanel.TileSize*13; // высота на экране
 
         solidArea = new Rectangle();
-        solidArea.x = 2; // коорд в перс
-        solidArea.y = 11;
-        solidArea.width = 28; //ширина хитбокса
-        solidArea.height = 53;
+        solidArea.x = 3; // коорд в перс
+        solidArea.y = 20;
+        solidArea.width = 56; //ширина хитбокса
+        solidArea.height = 100;
 
         setDefaultStats();
         getPlayerImage();
@@ -39,13 +45,17 @@ public class Player extends Entity{
         ScreenHeight = TileSize*ScreenRow;
         worldX = GamePanel.TileSize* 17;
 
-        worldY = TileSize*13; // уровень персонажа в игре
+        worldY = TileSize*12; // уровень персонажа в игре
         speed = 10;
         velocityY = 0;
         gravity = 0.8;
         floor = TileSize*13;
         jumpForce = -15;
-
+        onGround = false;
+        isJumping = false;
+        isFalling = false;
+        canDash = true;
+        dashCooldownTimer = 0;
 
     }
     public void getPlayerImage(){
@@ -63,64 +73,95 @@ public class Player extends Entity{
         }
     }
     public void update(){
-        if (Movement.jump && onGround) {
-            velocityY = jumpForce;
-            onGround = false;
-            isJumping = true;
-        }
-//поменять систему гравитации чтобы работала коллизия нормально
-        if (!onGround) {
-            worldY += (int) velocityY;
-            velocityY += gravity;
-            if (worldY >= floor) {
-                worldY = floor;
-                velocityY = 0;
-                onGround = true;
-                isJumping = false;
+        if (!canDash) {
+            dashCooldownTimer -= (float) 1 / 60; //60fps
+            if (dashCooldownTimer <= 0) {
+                canDash = true;
+                dashCooldownTimer = 0;
             }
         }
-        if (movement.left){
-            direction = "right";
 
-        } else if (movement.right) {
+        if (movement.shift && canDash) {
+            dash.startDash(movement.lastPressed);
+            canDash = false;
+            dashCooldownTimer = 0.6F;//задержка
+        }
+
+        dash.update();
+            if (Movement.jump && onGround){
+                velocityY = jumpForce;
+                isJumping = true;
+                onGround = false;
+                isFalling = false;
+            }
+
+            if (isJumping && velocityY >= 0) {
+                isJumping = false;
+                isFalling = true;
+            }
+
+        if (!onGround){
+            velocityY += gravity;
+            worldY += (int) velocityY;
+        } else {
+            velocityY = 0;
+        }
+
+        if (movement.left){
             direction = "left";
 
+        } else if (movement.right) {
+            direction = "right";
+
         } else if (movement.lastPressed=='a') {direction="standLeft";} else {direction = "standRight";}
+        //коллизия
+        collisionOn = false;
+        GamePanel.cChecker.checkTile(this);
+
+        if (dash.shouldApplyDashMovement()) {
+            applyDashMovement();
+        } else {
+        if (movement.left && !collisionOn){
+            worldX -= speed;
+        }
+        if (movement.right && !collisionOn){
+            worldX += speed;
+        }
         spriteCounter++;
         if (spriteCounter > 20){
             if (spriteNum==1){spriteNum=2;} else if (spriteNum==2) {spriteNum=1;
             }
             spriteCounter = 0;
-        }
-        //коллизия
+        }}
+
+
+    }
+    private void applyDashMovement() {
         collisionOn = false;
-
         GamePanel.cChecker.checkTile(this);
-        if (collisionOn == false){
-            switch (direction){
-                case "left":
-                    worldX +=speed;
-                    break;
-                case "right":
-                    worldX -=speed;
-                    break;
 
-
+        if (!collisionOn) {
+            if (dash.dashDirection.equals("left")) {
+                worldX -= dash.dashSpeed;
+            } else if (dash.dashDirection.equals("right")) {
+                worldX += dash.dashSpeed;
             }
+        } else {
+            dash.stopDash();
         }
     }
     public void draw(Graphics2D g2){
         BufferedImage image = null;
 
         switch (direction){
-            case "left":
+            case "right":
                 if (spriteNum == 1){
                     image = Moving1left;}
                 if (spriteNum == 2){
                     image = Moving2left;
                 }
                 break;
-            case "right":
+            case "left":
                 if (spriteNum == 1){
                     image = Moving1right;}
                 if (spriteNum == 2){
@@ -142,6 +183,6 @@ public class Player extends Entity{
                 break;
         }
         g2.drawImage(image, screenX, screenY, TileSize, TileSize*2, null);
-
     }
+
 }

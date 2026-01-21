@@ -7,6 +7,7 @@ public class Movement implements KeyListener {
    public boolean left;
     public boolean right;
     public static boolean jump;
+    public boolean shift;
     public char lastPressed='d';
     @Override
     public void keyTyped(KeyEvent e) {}
@@ -26,6 +27,9 @@ public class Movement implements KeyListener {
             jump=true;
 
         }
+        if (buttonPressed == KeyEvent.VK_SHIFT) {
+            shift = true;
+        }
     }
 
     @Override
@@ -40,5 +44,7 @@ public class Movement implements KeyListener {
         }
         if (buttonPressed==KeyEvent.VK_SPACE){
             jump=false;}
+        if (buttonPressed == KeyEvent.VK_SHIFT) {
+            shift = false;}
     }
 }
