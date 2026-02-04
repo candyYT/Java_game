@@ -10,6 +10,7 @@ public class Main {
         window.add(GamePanel);
         window.pack();
         window.setVisible(true);
+        GamePanel.setupGame();
         GamePanel.startGameThread();
     }
 }

@@ -3,8 +3,6 @@ package entity;
 import main.Dash;
 import main.gamepanel;
 import main.Movement;
-
-
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -17,6 +15,8 @@ public class Player extends Entity{
 
     public final int screenY;
     public final int screenX;
+    public int moneyCount = 0;
+
     private boolean canDash = true;
     private float dashCooldownTimer = 0;
 
@@ -26,26 +26,31 @@ public class Player extends Entity{
         this.dash = new Dash(movement);
 
         screenX = GamePanel.ScreenWidth/2;
-        screenY = GamePanel.TileSize*13; // высота на экране
+        screenY = GamePanel.TileSize*11;
 
         solidArea = new Rectangle();
-        solidArea.x = 3; // коорд в перс
+        solidArea.x = 3;
         solidArea.y = 20;
-        solidArea.width = 56; //ширина хитбокса
+        solidAreaDefaultX = solidArea.x;
+        solidAreaDefaultY = solidArea.y;
+        solidArea.width = 56;
         solidArea.height = 100;
 
         setDefaultStats();
         getPlayerImage();
     }
+
     public void setDefaultStats(){
         originalTileSize = 32;
         scale = (float) 60 /32;
         TileSize= (int) ((originalTileSize*scale));
         ScreenRow=18;
         ScreenHeight = TileSize*ScreenRow;
-        worldX = GamePanel.TileSize* 17;
 
-        worldY = TileSize*12; // уровень персонажа в игре
+
+        worldX = GamePanel.TileSize * 22;
+        worldY = GamePanel.TileSize * 20;
+
         speed = 10;
         velocityY = 0;
         gravity = 0.8;
@@ -56,8 +61,8 @@ public class Player extends Entity{
         isFalling = false;
         canDash = true;
         dashCooldownTimer = 0;
-
     }
+
     public void getPlayerImage(){
         try {
             Moving1left = ImageIO.read(getClass().getResourceAsStream("/player/Moving1.png"));
@@ -72,9 +77,13 @@ public class Player extends Entity{
             e.printStackTrace();
         }
     }
+
     public void update(){
+        int oldWorldX = worldX;
+        int oldWorldY = worldY;
+
         if (!canDash) {
-            dashCooldownTimer -= (float) 1 / 60; //60fps
+            dashCooldownTimer -= (float) 1 / 60;
             if (dashCooldownTimer <= 0) {
                 canDash = true;
                 dashCooldownTimer = 0;
@@ -84,21 +93,22 @@ public class Player extends Entity{
         if (movement.shift && canDash) {
             dash.startDash(movement.lastPressed);
             canDash = false;
-            dashCooldownTimer = 0.6F;//задержка
+            dashCooldownTimer = 0.6F;
         }
 
         dash.update();
-            if (Movement.jump && onGround){
-                velocityY = jumpForce;
-                isJumping = true;
-                onGround = false;
-                isFalling = false;
-            }
 
-            if (isJumping && velocityY >= 0) {
-                isJumping = false;
-                isFalling = true;
-            }
+        if (Movement.jump && onGround){
+            velocityY = jumpForce;
+            isJumping = true;
+            onGround = false;
+            isFalling = false;
+        }
+
+        if (isJumping && velocityY >= 0) {
+            isJumping = false;
+            isFalling = true;
+        }
 
         if (!onGround){
             velocityY += gravity;
@@ -109,33 +119,44 @@ public class Player extends Entity{
 
         if (movement.left){
             direction = "left";
-
         } else if (movement.right) {
             direction = "right";
+        } else if (movement.lastPressed=='a') {
+            direction="standLeft";
+        } else {
+            direction = "standRight";
+        }
 
-        } else if (movement.lastPressed=='a') {direction="standLeft";} else {direction = "standRight";}
-        //коллизия
         collisionOn = false;
         GamePanel.cChecker.checkTile(this);
+        int objIndex = GamePanel.cChecker.checkObject(this, true);
+        pickUpObject(objIndex);
 
         if (dash.shouldApplyDashMovement()) {
             applyDashMovement();
         } else {
-        if (movement.left && !collisionOn){
-            worldX -= speed;
-        }
-        if (movement.right && !collisionOn){
-            worldX += speed;
-        }
-        spriteCounter++;
-        if (spriteCounter > 20){
-            if (spriteNum==1){spriteNum=2;} else if (spriteNum==2) {spriteNum=1;
+            if (movement.left && !collisionOn){
+                worldX -= speed;
             }
-            spriteCounter = 0;
-        }}
+            if (movement.right && !collisionOn){
+                worldX += speed;
+            }
+            spriteCounter++;
+            if (spriteCounter > 20){
+                if (spriteNum==1){
+                    spriteNum=2;
+                } else if (spriteNum==2) {
+                    spriteNum=1;
+                }
+                spriteCounter = 0;
+            }
+        }
 
-
+        if (worldX != oldWorldX || worldY != oldWorldY) {
+            GamePanel.tileManager.checkTransition(worldX, worldY);
+        }
     }
+
     private void applyDashMovement() {
         collisionOn = false;
         GamePanel.cChecker.checkTile(this);
@@ -150,39 +171,60 @@ public class Player extends Entity{
             dash.stopDash();
         }
     }
+
+    public void pickUpObject(int i){
+        if(i!=999){
+            String objectName = GamePanel.obj[i].name;
+
+            switch (objectName){
+                case "Gear":
+                    moneyCount++;
+                    GamePanel.obj[i]=null;
+                    System.out.println("Gear collected! Total: " + moneyCount);
+                    break;
+            }
+        }
+    }
+
     public void draw(Graphics2D g2){
         BufferedImage image = null;
 
         switch (direction){
             case "right":
                 if (spriteNum == 1){
-                    image = Moving1left;}
+                    image = Moving1left;
+                }
                 if (spriteNum == 2){
                     image = Moving2left;
                 }
                 break;
             case "left":
                 if (spriteNum == 1){
-                    image = Moving1right;}
+                    image = Moving1right;
+                }
                 if (spriteNum == 2){
                     image = Moving2right;
                 }
                 break;
             case "standRight":
                 if (spriteNum == 1){
-                    image = Standing1;}
+                    image = Standing1;
+                }
                 if (spriteNum == 2){
                     image = Standing2;
                 }
                 break;
             case "standLeft":
                 if (spriteNum == 1){
-                    image = Standing1Left;}
+                    image = Standing1Left;
+                }
                 if (spriteNum == 2){
-                    image = Standing2Left;}
+                    image = Standing2Left;
+                }
                 break;
         }
-        g2.drawImage(image, screenX, screenY, TileSize, TileSize*2, null);
+        if (image != null) {
+            g2.drawImage(image, screenX, screenY, TileSize, TileSize*2, null);
+        }
     }
-
 }

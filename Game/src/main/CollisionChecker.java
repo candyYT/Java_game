@@ -114,5 +114,48 @@ public class CollisionChecker {
         }
 
     }
+    public int checkObject (Entity entity, boolean player){
+        int index = 999;
 
+        for (int i = 0; i< GamePanel.obj.length; i++){
+            if (GamePanel.obj[i]!=null){
+                entity.solidArea.x = entity.worldX + entity.solidArea.x;
+                entity.solidArea.y = entity.worldY + entity.solidArea.y;
+
+                GamePanel.obj [i].solidArea.x = GamePanel.obj [i].worldX + GamePanel.obj [i].solidArea.x;
+                GamePanel.obj [i].solidArea.y = GamePanel.obj [i].worldY + GamePanel.obj [i].solidArea.y;
+
+                switch (entity.direction){
+                    case "left":
+                        entity.solidArea.x -= entity.speed;
+                        if (entity.solidArea.intersects(GamePanel.obj [i].solidArea)){
+                            if (GamePanel.obj [i].collision == true){
+                                entity.collisionOn = true;
+                            }
+                            if(player==true){
+                                index = i;
+                            }
+                        }
+                        break;
+                    case "right":
+                        entity.solidArea.x += entity.speed;
+                        if (entity.solidArea.intersects(GamePanel.obj [i].solidArea)){
+                            if (GamePanel.obj [i].collision == true){
+                                entity.collisionOn = true;
+                            }
+                            if(player==true){
+                                index = i;
+                            }
+                        }
+                        break;
+                }
+                entity.solidArea.x = entity.solidAreaDefaultX;
+                entity.solidArea.y = entity.solidAreaDefaultY;
+                GamePanel.obj [i].solidArea.x = GamePanel.obj [i].solidAreaDefaultX;
+                GamePanel.obj [i].solidArea.y = GamePanel.obj [i].solidAreaDefaultY;
+            }
+        }
+
+        return index;
+    }
 }
