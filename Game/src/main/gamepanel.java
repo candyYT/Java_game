@@ -22,8 +22,8 @@ public class gamepanel extends JPanel implements Runnable {
     int FPS = 60;
     public String currentMap = "loc1.txt";
 
-    public MapTransition[] transitions = new MapTransition[10]; // 10 слотов для переходов
-    public int transitionCount = 0; // Счетчик реально добавленных переходов
+    public MapTransition[] transitions = new MapTransition[10];
+    public int transitionCount = 0;
 
     public TileManager tileManager = new TileManager(this);
     Movement movement = new Movement();
