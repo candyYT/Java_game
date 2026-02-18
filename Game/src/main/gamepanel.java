@@ -80,6 +80,7 @@ public class gamepanel extends JPanel implements Runnable {
         currentMap = newMap;
         tileManager.loadMap("/maps/" + newMap);
         objectLoader.loadObjects(this, newMap);
+        objectLoader.loadMonsters(this, newMap);
         player.worldX = playerX;
         player.worldY = playerY;
         player.onGround = true;
@@ -92,7 +93,7 @@ public class gamepanel extends JPanel implements Runnable {
         if (!currentMap.equals(checkpointMap)) {
             changeMap(checkpointMap, checkpointX, checkpointY);
         } else {
-            objectLoader.loadObjects(this, currentMap);
+            objectLoader.loadMonsters(this, currentMap);
 
             player.moneyCount = 0;
             player.worldX = checkpointX-TileSize;

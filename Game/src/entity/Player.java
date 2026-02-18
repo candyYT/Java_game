@@ -19,10 +19,12 @@ public class Player extends Entity{
     private int knockbackSpeedY = 0;
     private int knockbackFrames = 0;
     private final int knockbackDuration = 10;
+    private String withBolt = "_with_bolt";
 
     public final int screenY;
     public final int screenX;
     public int moneyCount = 0;
+    public boolean hasBolt = false;
 
     public Player(gamepanel gp, Movement movement){
         super(gp);
@@ -73,6 +75,19 @@ public class Player extends Entity{
     }
 
     public void getPlayerImage(){
+        if(hasBolt){
+            Moving1left = setup("/player/Moving_left_1"+withBolt);
+            Moving2left = setup("/player/Moving_left_2"+withBolt);
+            Moving1right = setup("/player/Moving_right_1"+withBolt);
+            Moving2right = setup("/player/Moving_right_2"+withBolt);
+            Standing1right = setup("/player/Standing_right_1"+withBolt);
+            Standing2right = setup("/player/Standing_right_2"+withBolt);
+            Standing1left = setup("/player/Standing_left_1"+withBolt);
+            Standing2left = setup("/player/Standing_left_2"+withBolt);
+
+
+        }
+        else {
         Moving1left = setup("/player/Moving_left_1");
         Moving2left = setup("/player/Moving_left_2");
         Moving1right = setup("/player/Moving_right_1");
@@ -81,6 +96,8 @@ public class Player extends Entity{
         Standing2right = setup("/player/Standing_right_2");
         Standing1left = setup("/player/Standing_left_1");
         Standing2left = setup("/player/Standing_left_2");
+        }
+
 
 
     }
@@ -334,6 +351,11 @@ public class Player extends Entity{
                         moneyCount++;
                         gp.obj[i]=null;
                         //GamePanel.ui.showMessage("+1");
+                        break;
+                    case "Bolt":
+                        hasBolt = true;
+                        getPlayerImage();
+                        gp.obj[i]=null;
                         break;
                 }
             }
