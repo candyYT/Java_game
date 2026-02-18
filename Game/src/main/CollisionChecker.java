@@ -11,6 +11,10 @@ public class CollisionChecker {
     }
 
     public void checkTile(Entity entity){
+        if (GamePanel.tileManager == null || GamePanel.tileManager.tile == null || GamePanel.tileManager.mapTileNum == null) {
+            return;
+        }
+
         int entityLeftWorldX = entity.worldX + entity.solidArea.x;
         int entityRightWorldX = entity.worldX + entity.solidArea.x + entity.solidArea.width;
         int entityTopWorldY = entity.worldY + entity.solidArea.y;
@@ -21,139 +25,189 @@ public class CollisionChecker {
         int entityTopRow = entityTopWorldY / GamePanel.TileSize;
         int entityBottomRow = entityBottomWorldY / GamePanel.TileSize;
 
+        if (entityLeftCol < 0) entityLeftCol = 0;
+        if (entityRightCol >= GamePanel.maxWorldCol) entityRightCol = GamePanel.maxWorldCol - 1;
+        if (entityTopRow < 0) entityTopRow = 0;
+        if (entityBottomRow >= GamePanel.maxWorldRow) entityBottomRow = GamePanel.maxWorldRow - 1;
+
         int tileNum1, tileNum2;
 
-            tileNum1 = GamePanel.tileManager.mapTileNum[entityLeftCol][entityBottomRow];
-            tileNum2 = GamePanel.tileManager.mapTileNum[entityRightCol][entityBottomRow];
+        try {
+            if (entityLeftCol < GamePanel.maxWorldCol && entityBottomRow < GamePanel.maxWorldRow &&
+                    entityRightCol < GamePanel.maxWorldCol) {
 
-            boolean GroundCollision = GamePanel.tileManager.tile[tileNum1].collision || GamePanel.tileManager.tile[tileNum2].collision;
+                tileNum1 = GamePanel.tileManager.mapTileNum[entityLeftCol][entityBottomRow];
+                tileNum2 = GamePanel.tileManager.mapTileNum[entityRightCol][entityBottomRow];
 
-            if(GroundCollision){//на земле
-                if(!entity.onGround && entity.velocityY >= 0){
-                    entity.worldY = entityBottomRow * GamePanel.TileSize - entity.solidArea.y - entity.solidArea.height;
-                    entity.velocityY = 0;
-                    entity.onGround = true;
-                    entity.isFalling = false;
-                    entity.isJumping = false;
+                boolean GroundCollision = false;
+
+                if (tileNum1 >= 0 && tileNum1 < GamePanel.tileManager.tile.length &&
+                        GamePanel.tileManager.tile[tileNum1] != null) {
+                    if (GamePanel.tileManager.tile[tileNum1].collision) {
+                        GroundCollision = true;
+                    }
                 }
-            } else {
-                if(entity.onGround){
-                    entity.onGround = false;
-                    entity.isFalling = true;
+                if (tileNum2 >= 0 && tileNum2 < GamePanel.tileManager.tile.length &&
+                        GamePanel.tileManager.tile[tileNum2] != null) {
+                    if (GamePanel.tileManager.tile[tileNum2].collision) {
+                        GroundCollision = true;
+                    }
+                }
+
+                if(GroundCollision){
+                    if(!entity.onGround && entity.velocityY >= 0){
+                        entity.worldY = entityBottomRow * GamePanel.TileSize - entity.solidArea.y - entity.solidArea.height;
+                        entity.velocityY = 0;
+                        entity.onGround = true;
+                        entity.isFalling = false;
+                        entity.isJumping = false;
+                    }
+                } else {
+                    if(entity.onGround){
+                        entity.onGround = false;
+                        entity.isFalling = true;
+                    }
                 }
             }
+        } catch (Exception e) {
+        }
 
+        try {
+            if(entity.isJumping && entity.velocityY < 0)
+            {
+                int ceilingRow = entityTopRow - 1;
+                if(ceilingRow >= 0 && entityLeftCol < GamePanel.maxWorldCol && entityRightCol < GamePanel.maxWorldCol){
+                    tileNum1 = GamePanel.tileManager.mapTileNum[entityLeftCol][ceilingRow];
+                    tileNum2 = GamePanel.tileManager.mapTileNum[entityRightCol][ceilingRow];
 
+                    boolean ceilingCollision = false;
 
-        if(entity.isJumping && entity.velocityY < 0)//над персом
-        {
-            int ceilingRow = entityTopRow - 1;
-            if(ceilingRow >= 0){
-                tileNum1 = GamePanel.tileManager.mapTileNum[entityLeftCol][ceilingRow];
-                tileNum2 = GamePanel.tileManager.mapTileNum[entityRightCol][ceilingRow];
+                    if (tileNum1 >= 0 && tileNum1 < GamePanel.tileManager.tile.length &&
+                            GamePanel.tileManager.tile[tileNum1] != null) {
+                        if (GamePanel.tileManager.tile[tileNum1].collision) {
+                            ceilingCollision = true;
+                        }
+                    }
+                    if (tileNum2 >= 0 && tileNum2 < GamePanel.tileManager.tile.length &&
+                            GamePanel.tileManager.tile[tileNum2] != null) {
+                        if (GamePanel.tileManager.tile[tileNum2].collision) {
+                            ceilingCollision = true;
+                        }
+                    }
 
-                if(GamePanel.tileManager.tile[tileNum1].collision || GamePanel.tileManager.tile[tileNum2].collision)// удар головой
-                {
-                    entity.worldY = (ceilingRow + 1) * GamePanel.TileSize - entity.solidArea.y;
-                    entity.velocityY = 0.5;
-                    entity.isJumping = false;
-                    entity.isFalling = true;
+                    if(ceilingCollision)
+                    {
+                        entity.worldY = (ceilingRow + 1) * GamePanel.TileSize - entity.solidArea.y;
+                        entity.velocityY = 0.5;
+                        entity.isJumping = false;
+                        entity.isFalling = true;
+                    }
                 }
             }
-        }
-        //горизонт коллизия
-        switch(entity.direction){
-            case "left":
-                int leftSpeed = entity.speed;
-                if (entity instanceof Player) {
-                    Player player = (Player) entity;
-                    if (player.dash.isDashing && player.dash.dashDirection.equals("left")) {
-                        leftSpeed = player.dash.dashSpeed;
-                    }
-                }
-                int checkLeftCol = (entityLeftWorldX - leftSpeed) / GamePanel.TileSize;
-                boolean leftCollision = false;
-
-                for (int row = entityTopRow; row < entityBottomRow; row++) {
-                    if (row >= 0 && row < GamePanel.maxWorldRow && checkLeftCol >= 0) {
-                        tileNum1 = GamePanel.tileManager.mapTileNum[checkLeftCol][row];
-                        if(GamePanel.tileManager.tile[tileNum1].collision) {
-                            leftCollision = true;
-                            entity.worldX = (checkLeftCol + 1) * GamePanel.TileSize - entity.solidArea.x;
-                            break;
-                        }
-                    }
-                }
-                entity.collisionOn = leftCollision;
-                break;
-
-            case "right":
-                int rightSpeed = entity.speed;
-                if (entity instanceof Player) {
-                    Player player = (Player) entity;
-                    if (player.dash.isDashing && player.dash.dashDirection.equals("right")) {
-                        rightSpeed = player.dash.dashSpeed;
-                    }
-                }
-                int checkRightCol = (entityRightWorldX + rightSpeed) / GamePanel.TileSize;
-                boolean rightCollision = false;
-                for (int row = entityTopRow; row < entityBottomRow; row++) {
-                    if (row >= 0 && row < GamePanel.maxWorldRow && checkRightCol < GamePanel.maxWorldCol) {
-                        tileNum1 = GamePanel.tileManager.mapTileNum[checkRightCol][row];
-                        if(GamePanel.tileManager.tile[tileNum1].collision) {
-                            rightCollision = true;
-
-                            int wallLeftX = checkRightCol * GamePanel.TileSize;
-                            entity.worldX = wallLeftX - entity.solidArea.x - entity.solidArea.width - 1;
-                            break;
-                        }
-                    }
-                }
-                entity.collisionOn = rightCollision;
-                break;
+        } catch (Exception e) {
         }
 
+        try {
+            switch(entity.direction){
+                case "left":
+                    int leftSpeed = entity.speed;
+                    if (entity instanceof Player) {
+                        Player player = (Player) entity;
+                        if (player.dash.isDashing && player.dash.dashDirection.equals("left")) {
+                            leftSpeed = player.dash.dashSpeed;
+                        }
+                    }
+                    int checkLeftCol = (entityLeftWorldX - leftSpeed) / GamePanel.TileSize;
+                    boolean leftCollision = false;
+
+                    for (int row = entityTopRow; row < entityBottomRow; row++) {
+                        if (row >= 0 && row < GamePanel.maxWorldRow && checkLeftCol >= 0 && checkLeftCol < GamePanel.maxWorldCol) {
+                            tileNum1 = GamePanel.tileManager.mapTileNum[checkLeftCol][row];
+                            if (tileNum1 >= 0 && tileNum1 < GamePanel.tileManager.tile.length &&
+                                    GamePanel.tileManager.tile[tileNum1] != null &&
+                                    GamePanel.tileManager.tile[tileNum1].collision) {
+                                leftCollision = true;
+                                entity.worldX = (checkLeftCol + 1) * GamePanel.TileSize - entity.solidArea.x;
+                                break;
+                            }
+                        }
+                    }
+                    entity.collisionOn = leftCollision;
+                    break;
+
+                case "right":
+                    int rightSpeed = entity.speed;
+                    if (entity instanceof Player) {
+                        Player player = (Player) entity;
+                        if (player.dash.isDashing && player.dash.dashDirection.equals("right")) {
+                            rightSpeed = player.dash.dashSpeed;
+                        }
+                    }
+                    int checkRightCol = (entityRightWorldX + rightSpeed) / GamePanel.TileSize;
+                    boolean rightCollision = false;
+                    for (int row = entityTopRow; row < entityBottomRow; row++) {
+                        if (row >= 0 && row < GamePanel.maxWorldRow && checkRightCol >= 0 && checkRightCol < GamePanel.maxWorldCol) {
+                            tileNum1 = GamePanel.tileManager.mapTileNum[checkRightCol][row];
+                            if (tileNum1 >= 0 && tileNum1 < GamePanel.tileManager.tile.length &&
+                                    GamePanel.tileManager.tile[tileNum1] != null &&
+                                    GamePanel.tileManager.tile[tileNum1].collision) {
+                                rightCollision = true;
+                                int wallLeftX = checkRightCol * GamePanel.TileSize;
+                                entity.worldX = wallLeftX - entity.solidArea.x - entity.solidArea.width - 1;
+                                break;
+                            }
+                        }
+                    }
+                    entity.collisionOn = rightCollision;
+                    break;
+            }
+        } catch (Exception e) {
+        }
     }
+
     public int checkObject (Entity entity, boolean player){
         int index = 999;
 
-        for (int i = 0; i< GamePanel.obj.length; i++){
-            if (GamePanel.obj[i]!=null){
-                entity.solidArea.x = entity.worldX + entity.solidArea.x;
-                entity.solidArea.y = entity.worldY + entity.solidArea.y;
+        try {
+            for (int i = 0; i < GamePanel.obj.length; i++){
+                if (GamePanel.obj[i] != null){
+                    entity.solidArea.x = entity.worldX + entity.solidArea.x;
+                    entity.solidArea.y = entity.worldY + entity.solidArea.y;
 
-                GamePanel.obj [i].solidArea.x = GamePanel.obj [i].worldX + GamePanel.obj [i].solidArea.x;
-                GamePanel.obj [i].solidArea.y = GamePanel.obj [i].worldY + GamePanel.obj [i].solidArea.y;
+                    GamePanel.obj[i].solidArea.x = GamePanel.obj[i].worldX + GamePanel.obj[i].solidArea.x;
+                    GamePanel.obj[i].solidArea.y = GamePanel.obj[i].worldY + GamePanel.obj[i].solidArea.y;
 
-                switch (entity.direction){
-                    case "left":
-                        entity.solidArea.x -= entity.speed;
-                        if (entity.solidArea.intersects(GamePanel.obj [i].solidArea)){
-                            if (GamePanel.obj [i].collision == true){
-                                entity.collisionOn = true;
+                    switch (entity.direction){
+                        case "left":
+                            entity.solidArea.x -= entity.speed;
+                            if (entity.solidArea.intersects(GamePanel.obj[i].solidArea)){
+                                if (GamePanel.obj[i].collision == true){
+                                    entity.collisionOn = true;
+                                }
+                                if(player == true){
+                                    index = i;
+                                }
                             }
-                            if(player==true){
-                                index = i;
+                            break;
+                        case "right":
+                            entity.solidArea.x += entity.speed;
+                            if (entity.solidArea.intersects(GamePanel.obj[i].solidArea)){
+                                if (GamePanel.obj[i].collision == true){
+                                    entity.collisionOn = true;
+                                }
+                                if(player == true){
+                                    index = i;
+                                }
                             }
-                        }
-                        break;
-                    case "right":
-                        entity.solidArea.x += entity.speed;
-                        if (entity.solidArea.intersects(GamePanel.obj [i].solidArea)){
-                            if (GamePanel.obj [i].collision == true){
-                                entity.collisionOn = true;
-                            }
-                            if(player==true){
-                                index = i;
-                            }
-                        }
-                        break;
+                            break;
+                    }
+                    entity.solidArea.x = entity.solidAreaDefaultX;
+                    entity.solidArea.y = entity.solidAreaDefaultY;
+                    GamePanel.obj[i].solidArea.x = GamePanel.obj[i].solidAreaDefaultX;
+                    GamePanel.obj[i].solidArea.y = GamePanel.obj[i].solidAreaDefaultY;
                 }
-                entity.solidArea.x = entity.solidAreaDefaultX;
-                entity.solidArea.y = entity.solidAreaDefaultY;
-                GamePanel.obj [i].solidArea.x = GamePanel.obj [i].solidAreaDefaultX;
-                GamePanel.obj [i].solidArea.y = GamePanel.obj [i].solidAreaDefaultY;
             }
+        } catch (Exception e) {
         }
 
         return index;

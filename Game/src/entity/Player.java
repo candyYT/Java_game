@@ -3,41 +3,48 @@ package entity;
 import main.Dash;
 import main.gamepanel;
 import main.Movement;
-import javax.imageio.ImageIO;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 
 public class Player extends Entity{
-    gamepanel GamePanel;
     Movement movement;
     public Dash dash;
+
+    public boolean invincible = false;
+    public int invincibleCounter = 0;
+    public final int invincibleDuration = 30; //неуязвимость в кадрах
+
+    private int knockbackSpeedX = 0;
+    private int knockbackSpeedY = 0;
+    private int knockbackFrames = 0;
+    private final int knockbackDuration = 10;
 
     public final int screenY;
     public final int screenX;
     public int moneyCount = 0;
 
-    private boolean canDash = true;
-    private float dashCooldownTimer = 0;
-
-    public Player(gamepanel Gamepanel, Movement movement){
-        this.GamePanel = Gamepanel;
+    public Player(gamepanel gp, Movement movement){
+        super(gp);
+        this.gp = gp;
         this.movement = movement;
         this.dash = new Dash(movement);
 
-        screenX = GamePanel.ScreenWidth/2;
-        screenY = GamePanel.TileSize*11;
+        screenX = this.gp.ScreenWidth/2;
+        screenY = this.gp.ScreenHeight/2+gp.TileSize;
 
         solidArea = new Rectangle();
-        solidArea.x = 3;
-        solidArea.y = 20;
+        solidArea.x = 20;
+        solidArea.y = 10;
         solidAreaDefaultX = solidArea.x;
         solidAreaDefaultY = solidArea.y;
-        solidArea.width = 56;
-        solidArea.height = 100;
+        solidArea.width = 2*gp.TileSize-42;
+        solidArea.height = 2*gp.TileSize-20;
+
 
         setDefaultStats();
         getPlayerImage();
+        direction = "standRight";
     }
 
     public void setDefaultStats(){
@@ -48,8 +55,12 @@ public class Player extends Entity{
         ScreenHeight = TileSize*ScreenRow;
 
 
-        worldX = GamePanel.TileSize * 22;
-        worldY = GamePanel.TileSize * 20;
+
+        worldX = gp.TileSize * 22;
+        worldY = gp.TileSize * 20;
+
+        maxLife = 6;
+        life = maxLife;
 
         speed = 10;
         velocityY = 0;
@@ -59,42 +70,24 @@ public class Player extends Entity{
         onGround = false;
         isJumping = false;
         isFalling = false;
-        canDash = true;
-        dashCooldownTimer = 0;
     }
 
     public void getPlayerImage(){
-        try {
-            Moving1left = ImageIO.read(getClass().getResourceAsStream("/player/Moving1.png"));
-            Moving2left = ImageIO.read(getClass().getResourceAsStream("/player/Moving2.png"));
-            Standing1 = ImageIO.read(getClass().getResourceAsStream("/player/Standing1.png"));
-            Standing2 = ImageIO.read(getClass().getResourceAsStream("/player/Standing2.png"));
-            Moving1right = ImageIO.read(getClass().getResourceAsStream("/player/Moving1right.png"));
-            Moving2right = ImageIO.read(getClass().getResourceAsStream("/player/Moving2right.png"));
-            Standing1Left = ImageIO.read(getClass().getResourceAsStream("/player/Standing1Left.png"));
-            Standing2Left = ImageIO.read(getClass().getResourceAsStream("/player/Standing2Left.png"));
-        } catch (IOException e){
-            e.printStackTrace();
-        }
+        Moving1left = setup("/player/Moving_left_1");
+        Moving2left = setup("/player/Moving_left_2");
+        Moving1right = setup("/player/Moving_right_1");
+        Moving2right = setup("/player/Moving_right_2");
+        Standing1right = setup("/player/Standing_right_1");
+        Standing2right = setup("/player/Standing_right_2");
+        Standing1left = setup("/player/Standing_left_1");
+        Standing2left = setup("/player/Standing_left_2");
+
+
     }
 
     public void update(){
         int oldWorldX = worldX;
         int oldWorldY = worldY;
-
-        if (!canDash) {
-            dashCooldownTimer -= (float) 1 / 60;
-            if (dashCooldownTimer <= 0) {
-                canDash = true;
-                dashCooldownTimer = 0;
-            }
-        }
-
-        if (movement.shift && canDash) {
-            dash.startDash(movement.lastPressed);
-            canDash = false;
-            dashCooldownTimer = 0.6F;
-        }
 
         dash.update();
 
@@ -127,14 +120,28 @@ public class Player extends Entity{
             direction = "standRight";
         }
 
-        collisionOn = false;
-        GamePanel.cChecker.checkTile(this);
-        int objIndex = GamePanel.cChecker.checkObject(this, true);
-        pickUpObject(objIndex);
+        if (movement.shiftPressed && !dash.isDashing) {
+            dash.startDash(movement.lastPressed);
+            movement.shiftPressed = false;
+        }
 
         if (dash.shouldApplyDashMovement()) {
             applyDashMovement();
+            collisionOn = false;
+            gp.cChecker.checkTile(this);
+            int objIndex = gp.cChecker.checkObject(this, true);
+            pickUpObject(objIndex);
+
+            if (collisionOn && dash.isDashing) {
+                worldX = oldWorldX;
+                dash.stopDash();
+            }
         } else {
+            collisionOn = false;
+            gp.cChecker.checkTile(this);
+            int objIndex = gp.cChecker.checkObject(this, true);
+            pickUpObject(objIndex);
+
             if (movement.left && !collisionOn){
                 worldX -= speed;
             }
@@ -150,38 +157,185 @@ public class Player extends Entity{
                 }
                 spriteCounter = 0;
             }
+
+        }
+
+        if (!invincible) {
+            for (int i = 0; i < gp.monster.length; i++) {
+                if (gp.monster[i] != null) {
+                    Rectangle playerRect = new Rectangle(
+                            worldX + solidArea.x,
+                            worldY + solidArea.y,
+                            solidArea.width,
+                            solidArea.height
+                    );
+                    Rectangle monsterRect = new Rectangle(
+                            gp.monster[i].worldX + gp.monster[i].solidArea.x,
+                            gp.monster[i].worldY + gp.monster[i].solidArea.y,
+                            gp.monster[i].solidArea.width,
+                            gp.monster[i].solidArea.height
+                    );
+
+                    if (playerRect.intersects(monsterRect)) {
+                        life--;
+                        if (life < 0) life = 0;
+
+
+                        int targetX;
+                        if (worldX < gp.monster[i].worldX) {
+                            targetX = -200;
+                        } else {
+                            targetX = 200;
+                        }
+                        int targetY = -200;
+                        knockbackSpeedX = targetX / knockbackDuration;
+                        knockbackSpeedY = targetY / knockbackDuration;
+                        knockbackFrames = knockbackDuration;
+
+                        invincible = true;
+                        invincibleCounter = 0;
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (invincible) {
+            invincibleCounter++;
+            if (invincibleCounter > invincibleDuration) {
+                invincible = false;
+                invincibleCounter = 0;
+            }
+        }
+
+        if (knockbackFrames > 0) {
+
+            int oldX = worldX;
+            int oldY = worldY;
+
+            worldX += knockbackSpeedX;
+            worldY += knockbackSpeedY;
+
+            collisionOn = false;
+            gp.cChecker.checkTile(this);
+
+            if (collisionOn) {
+                worldX = oldX;
+                worldY = oldY;
+                knockbackFrames = 0;
+                knockbackSpeedX = 0;
+                knockbackSpeedY = 0;
+            } else {
+                knockbackFrames--;
+                if (knockbackFrames == 0) {
+                    knockbackSpeedX = 0;
+                    knockbackSpeedY = 0;
+                }
+            }
+        }
+
+        if (life <= 0) {
+            moneyCount = 0;
+            gp.respawn();
         }
 
         if (worldX != oldWorldX || worldY != oldWorldY) {
-            GamePanel.tileManager.checkTransition(worldX, worldY);
+            gp.tileManager.checkTransition(worldX, worldY);
         }
     }
 
     private void applyDashMovement() {
-        collisionOn = false;
-        GamePanel.cChecker.checkTile(this);
-
         if (!collisionOn) {
-            if (dash.dashDirection.equals("left")) {
-                worldX -= dash.dashSpeed;
-            } else if (dash.dashDirection.equals("right")) {
-                worldX += dash.dashSpeed;
+            int dashDistanceToWall = calculateDashDistanceToWall();
+
+            if (dashDistanceToWall >= 1) {
+                int actualDash = dash.dashSpeed;
+                if (dashDistanceToWall < dash.dashSpeed) {
+                    actualDash = dashDistanceToWall;
+                }
+
+                if (dash.dashDirection.equals("left")) {
+                    worldX -= actualDash;
+                } else if (dash.dashDirection.equals("right")) {
+                    worldX += actualDash;
+                }
+            } else {
+                dash.stopDash();
             }
         } else {
             dash.stopDash();
         }
     }
 
-    public void pickUpObject(int i){
-        if(i!=999){
-            String objectName = GamePanel.obj[i].name;
+    private int calculateDashDistanceToWall() {
+        int maxDistance = dash.dashSpeed;
+        int checkDistance = 1;
+        int entityLeftWorldX = worldX + solidArea.x;
+        int entityRightWorldX = worldX + solidArea.x + solidArea.width;
+        int entityTopWorldY = worldY + solidArea.y;
+        int entityBottomWorldY = worldY + solidArea.y + solidArea.height;
 
-            switch (objectName){
-                case "Gear":
-                    moneyCount++;
-                    GamePanel.obj[i]=null;
-                    System.out.println("Gear collected! Total: " + moneyCount);
-                    break;
+        int entityTopRow = entityTopWorldY / gp.TileSize;
+        int entityBottomRow = entityBottomWorldY / gp.TileSize;
+
+        if (dash.dashDirection.equals("left")) {
+            for (int distance = checkDistance; distance <= maxDistance; distance += checkDistance) {
+                int checkLeftCol = (entityLeftWorldX - distance) / gp.TileSize;
+
+                for (int row = entityTopRow; row < entityBottomRow; row++) {
+                    if (row >= 0 && row < gp.maxWorldRow && checkLeftCol >= 0 && checkLeftCol < gp.maxWorldCol) {
+                        int tileNum = gp.tileManager.mapTileNum[checkLeftCol][row];
+                        if (tileNum >= 0 && tileNum < gp.tileManager.tile.length &&
+                                gp.tileManager.tile[tileNum] != null &&
+                                gp.tileManager.tile[tileNum].collision) {
+                            int safeDistance = distance - checkDistance;
+                            if (safeDistance < 0) {
+                                safeDistance = 0;
+                            }
+                            return safeDistance;
+                        }
+                    }
+                }
+            }
+            return maxDistance;
+        }
+        else if (dash.dashDirection.equals("right")) {
+            for (int distance = checkDistance; distance <= maxDistance; distance += checkDistance) {
+                int checkRightCol = (entityRightWorldX + distance) / gp.TileSize;
+
+                for (int row = entityTopRow; row < entityBottomRow; row++) {
+                    if (row >= 0 && row < gp.maxWorldRow && checkRightCol >= 0 && checkRightCol < gp.maxWorldCol) {
+                        int tileNum = gp.tileManager.mapTileNum[checkRightCol][row];
+                        if (tileNum >= 0 && tileNum < gp.tileManager.tile.length &&
+                                gp.tileManager.tile[tileNum] != null &&
+                                gp.tileManager.tile[tileNum].collision) {
+                            int safeDistance = distance - checkDistance;
+                            if (safeDistance < 0) {
+                                safeDistance = 0;
+                            }
+                            return safeDistance;
+                        }
+                    }
+                }
+            }
+            return maxDistance;
+        }
+
+        return maxDistance;
+    }
+
+    public void pickUpObject(int i){
+        if(i != 999 && i >= 0 && i < gp.obj.length && gp.obj[i] != null){
+            String objectName = gp.obj[i].name;
+            if (objectName != null) {
+                switch (objectName){
+                    case "Gear":
+                        moneyCount++;
+                        gp.obj[i]=null;
+                        //GamePanel.ui.showMessage("+1");
+                        break;
+                }
             }
         }
     }
@@ -189,8 +343,12 @@ public class Player extends Entity{
     public void draw(Graphics2D g2){
         BufferedImage image = null;
 
+        if (direction == null || movement.left&& movement.right) {
+            direction = "standRight";
+        }
+
         switch (direction){
-            case "right":
+            case "left":
                 if (spriteNum == 1){
                     image = Moving1left;
                 }
@@ -198,7 +356,7 @@ public class Player extends Entity{
                     image = Moving2left;
                 }
                 break;
-            case "left":
+            case "right":
                 if (spriteNum == 1){
                     image = Moving1right;
                 }
@@ -208,23 +366,35 @@ public class Player extends Entity{
                 break;
             case "standRight":
                 if (spriteNum == 1){
-                    image = Standing1;
+                    image = Standing1right;
                 }
                 if (spriteNum == 2){
-                    image = Standing2;
+                    image = Standing2right;
                 }
                 break;
             case "standLeft":
                 if (spriteNum == 1){
-                    image = Standing1Left;
+                    image = Standing1left;
                 }
                 if (spriteNum == 2){
-                    image = Standing2Left;
+                    image = Standing2left;
                 }
                 break;
+            default:
+                image = Standing1right;
+                break;
         }
+
+        if (image == null) {
+            image = Standing1right;
+        }
+
         if (image != null) {
-            g2.drawImage(image, screenX, screenY, TileSize, TileSize*2, null);
+            g2.drawImage(image, screenX, screenY, null);
+        }
+        if (gp.showHitboxes) {
+            g2.setColor(Color.RED);
+            g2.drawRect(screenX + solidArea.x, screenY + solidArea.y, solidArea.width, solidArea.height);
         }
     }
 }
