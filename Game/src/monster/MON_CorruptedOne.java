@@ -6,7 +6,8 @@ import object.OBJ_Gear;
 
 public class MON_CorruptedOne extends Entity {
     public int dropChance = 100;
-    public int dropAmount = 3;
+    public int dropAmount = 1;
+    public int moneyReward = 1;
 
     public MON_CorruptedOne(gamepanel gp) {
         super(gp);
@@ -59,19 +60,9 @@ public class MON_CorruptedOne extends Entity {
     @Override
     public void die() {
         String id = name + "_" + worldX / gp.TileSize + "_" + worldY / gp.TileSize;
-        gp.killedMonsters.computeIfAbsent(gp.currentMap, k -> new java.util.HashSet<>()).add(id);
-        if (Math.random() * 100 < dropChance) {
-            for (int i = 0; i < dropAmount; i++) {
-                for (int j = 0; j < gp.obj.length; j++) {
-                    if (gp.obj[j] == null) {
-                        OBJ_Gear gear = new OBJ_Gear(gp);
-                        gear.worldX = worldX;
-                        gear.worldY = worldY;
-                        gp.obj[j] = gear;
-                        break;
-                    }
-                }
-            }
+        gp.killedMonsters.computeIfAbsent(gp.currentMap, _ -> new java.util.HashSet<>()).add(id);
+        if (gp.player != null) {
+            gp.player.moneyCount += moneyReward;
         }
     }
 }
